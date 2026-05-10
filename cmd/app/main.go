@@ -32,18 +32,22 @@ type MemoryStore struct {
 }
 
 func NewMemoryStore() *MemoryStore {
-	return &MemoryStore{payments: make(map[string]Payment)}
+	return &MemoryStore{
+		payments: make(map[string]Payment),
+	}
 }
 
 func (s *MemoryStore) Save(payment Payment) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
 	s.payments[payment.ID] = payment
 }
 
 func (s *MemoryStore) Get(id string) (Payment, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+
 	payment, ok := s.payments[id]
 	return payment, ok
 }
@@ -58,11 +62,19 @@ func main() {
 
 	app.Post("/payments", func(c *fiber.Ctx) error {
 		var req CreatePaymentRequest
+
 		if err := c.BodyParser(&req); err != nil {
 			return fiber.ErrBadRequest
 		}
 
+		if req.OrderID == "" || req.Amount <= 0 || req.Currency != "RUB" {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "order_id, positive amount and RUB currency are required",
+			})
+		}
+
 		id := fmt.Sprintf("pay_%d", time.Now().UnixNano())
+
 		payment := Payment{
 			ID:          id,
 			OrderID:     req.OrderID,
@@ -72,7 +84,9 @@ func main() {
 			Status:      "pending",
 			PaymentURL:  "https://pay.local/" + id,
 		}
+
 		store.Save(payment)
+
 		return c.Status(fiber.StatusCreated).JSON(payment)
 	})
 
@@ -81,6 +95,7 @@ func main() {
 		if !ok {
 			return fiber.ErrNotFound
 		}
+
 		return c.JSON(payment)
 	})
 
