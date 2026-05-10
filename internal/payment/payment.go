@@ -52,7 +52,6 @@ type Repository interface {
 	Get(ctx context.Context, id string) (Payment, error)
 	FindByIdempotencyKey(ctx context.Context, key string) (Payment, error)
 	UpdateStatus(ctx context.Context, id string, status string) (Payment, error)
-	UpdateProviderData(ctx context.Context, id string, providerID string, paymentURL string) (Payment, error)
 }
 
 type Service struct {
@@ -86,18 +85,15 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (Payment, error
 		Status:         StatusPending,
 		IdempotencyKey: req.IdempotencyKey,
 	}
-	created, err := s.repo.Create(ctx, p)
-	if err != nil {
-		return Payment{}, err
+	if s.provider != nil {
+		providerID, paymentURL, err := s.provider.CreatePayment(ctx, p)
+		if err != nil {
+			return Payment{}, err
+		}
+		p.ProviderPaymentID = providerID
+		p.PaymentURL = paymentURL
 	}
-	if s.provider == nil {
-		return created, nil
-	}
-	providerID, paymentURL, err := s.provider.CreatePayment(ctx, created)
-	if err != nil {
-		return Payment{}, err
-	}
-	return s.repo.UpdateProviderData(ctx, created.ID, providerID, paymentURL)
+	return s.repo.Create(ctx, p)
 }
 
 func (s *Service) Get(ctx context.Context, id string) (Payment, error) {

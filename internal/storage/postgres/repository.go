@@ -48,9 +48,3 @@ func (r *Repository) UpdateStatus(ctx context.Context, id string, status string)
 RETURNING id, order_id, amount, currency, description, status, payment_url, provider_payment_id, idempotency_key, created_at, updated_at`
 	return scan(r.db.QueryRow(ctx, q, id, status))
 }
-
-func (r *Repository) UpdateProviderData(ctx context.Context, id string, providerID string, paymentURL string) (payment.Payment, error) {
-	q := `UPDATE payments SET provider_payment_id=$2, payment_url=$3, updated_at=now() WHERE id=$1
-RETURNING id, order_id, amount, currency, description, status, payment_url, provider_payment_id, idempotency_key, created_at, updated_at`
-	return scan(r.db.QueryRow(ctx, q, id, providerID, paymentURL))
-}
