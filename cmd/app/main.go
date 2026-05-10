@@ -1,103 +1,47 @@
 package main
 
 import (
-	"fmt"
+	"context"
 	"log"
-	"sync"
-	"time"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"stepik-payments-course/internal/config"
+	"stepik-payments-course/internal/httpapi"
+	"stepik-payments-course/internal/payment"
+	mockprovider "stepik-payments-course/internal/provider/mock"
+	"stepik-payments-course/internal/storage/postgres"
 )
 
-type CreatePaymentRequest struct {
-	OrderID     string `json:"order_id"`
-	Amount      int64  `json:"amount"`
-	Currency    string `json:"currency"`
-	Description string `json:"description"`
-}
-
-type Payment struct {
-	ID          string `json:"id"`
-	OrderID     string `json:"order_id"`
-	Amount      int64  `json:"amount"`
-	Currency    string `json:"currency"`
-	Description string `json:"description"`
-	Status      string `json:"status"`
-	PaymentURL  string `json:"payment_url"`
-}
-
-type MemoryStore struct {
-	mu       sync.RWMutex
-	payments map[string]Payment
-}
-
-func NewMemoryStore() *MemoryStore {
-	return &MemoryStore{
-		payments: make(map[string]Payment),
-	}
-}
-
-func (s *MemoryStore) Save(payment Payment) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.payments[payment.ID] = payment
-}
-
-func (s *MemoryStore) Get(id string) (Payment, bool) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	payment, ok := s.payments[id]
-	return payment, ok
-}
-
 func main() {
-	store := NewMemoryStore()
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	cfg := config.Load()
+	if cfg.DatabaseURL == "" {
+		log.Fatal("DATABASE_URL is required")
+	}
+
+	db, err := pgxpool.New(ctx, cfg.DatabaseURL)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+
+	service := payment.NewService(postgres.NewRepository(db), mockprovider.NewProvider())
 	app := fiber.New()
+	httpapi.NewHandler(service).Register(app)
 
-	app.Get("/health", func(c *fiber.Ctx) error {
-		return c.JSON(fiber.Map{"status": "ok"})
-	})
-
-	app.Post("/payments", func(c *fiber.Ctx) error {
-		var req CreatePaymentRequest
-
-		if err := c.BodyParser(&req); err != nil {
-			return fiber.ErrBadRequest
+	go func() {
+		if err := app.Listen(cfg.HTTPAddr); err != nil {
+			log.Println(err)
+			stop()
 		}
+	}()
 
-		if req.OrderID == "" || req.Amount <= 0 || req.Currency != "RUB" {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": "order_id, positive amount and RUB currency are required",
-			})
-		}
-
-		id := fmt.Sprintf("pay_%d", time.Now().UnixNano())
-
-		payment := Payment{
-			ID:          id,
-			OrderID:     req.OrderID,
-			Amount:      req.Amount,
-			Currency:    req.Currency,
-			Description: req.Description,
-			Status:      "pending",
-			PaymentURL:  "https://pay.local/" + id,
-		}
-
-		store.Save(payment)
-
-		return c.Status(fiber.StatusCreated).JSON(payment)
-	})
-
-	app.Get("/payments/:id", func(c *fiber.Ctx) error {
-		payment, ok := store.Get(c.Params("id"))
-		if !ok {
-			return fiber.ErrNotFound
-		}
-
-		return c.JSON(payment)
-	})
-
-	log.Fatal(app.Listen(":8080"))
+	<-ctx.Done()
+	_ = app.Shutdown()
 }
