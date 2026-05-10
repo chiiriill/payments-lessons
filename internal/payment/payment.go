@@ -52,6 +52,7 @@ type Repository interface {
 	Get(ctx context.Context, id string) (Payment, error)
 	FindByIdempotencyKey(ctx context.Context, key string) (Payment, error)
 	UpdateStatus(ctx context.Context, id string, status string) (Payment, error)
+	UpdateProviderData(ctx context.Context, id string, providerID string, paymentURL string) (Payment, error)
 }
 
 type Service struct {
@@ -85,15 +86,18 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (Payment, error
 		Status:         StatusPending,
 		IdempotencyKey: req.IdempotencyKey,
 	}
-	if s.provider != nil {
-		providerID, paymentURL, err := s.provider.CreatePayment(ctx, p)
-		if err != nil {
-			return Payment{}, err
-		}
-		p.ProviderPaymentID = providerID
-		p.PaymentURL = paymentURL
+	created, err := s.repo.Create(ctx, p)
+	if err != nil {
+		return Payment{}, err
 	}
-	return s.repo.Create(ctx, p)
+	if s.provider == nil {
+		return created, nil
+	}
+	providerID, paymentURL, err := s.provider.CreatePayment(ctx, created)
+	if err != nil {
+		return Payment{}, err
+	}
+	return s.repo.UpdateProviderData(ctx, created.ID, providerID, paymentURL)
 }
 
 func (s *Service) Get(ctx context.Context, id string) (Payment, error) {
@@ -101,6 +105,13 @@ func (s *Service) Get(ctx context.Context, id string) (Payment, error) {
 }
 
 func (s *Service) MarkPaid(ctx context.Context, id string) (Payment, error) {
+	p, err := s.repo.Get(ctx, id)
+	if err != nil {
+		return Payment{}, err
+	}
+	if p.Status != StatusPending {
+		return Payment{}, ErrInvalidTransition
+	}
 	return s.repo.UpdateStatus(ctx, id, StatusPaid)
 }
 
@@ -116,8 +127,11 @@ func (s *Service) Check(ctx context.Context, id string) (Payment, error) {
 	if err != nil {
 		return Payment{}, err
 	}
-	if status == StatusPaid && p.Status != StatusPaid {
+	if status == StatusPaid && p.Status == StatusPending {
 		return s.repo.UpdateStatus(ctx, p.ID, StatusPaid)
+	}
+	if status == StatusFailed && p.Status == StatusPending {
+		return s.repo.UpdateStatus(ctx, p.ID, StatusFailed)
 	}
 	return p, nil
 }

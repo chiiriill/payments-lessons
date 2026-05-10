@@ -3,8 +3,9 @@ package httpapi
 import (
 	"errors"
 
-	"github.com/gofiber/fiber/v2"
 	"stepik-payments-course/internal/payment"
+
+	"github.com/gofiber/fiber/v2"
 )
 
 type Handler struct {
@@ -94,6 +95,9 @@ func (h *Handler) mockProviderWebhook(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{"status": "ignored"})
 	}
 	_, err := h.service.MarkPaid(c.Context(), req.PaymentID)
+	if errors.Is(err, payment.ErrInvalidTransition) {
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": err.Error()})
+	}
 	if err != nil {
 		return err
 	}
