@@ -9,7 +9,7 @@ type Config struct {
 
 func Load() Config {
 	cfg := Config{
-		HTTPAddr:    ":8080",
+		HTTPAddr:    ":8081",
 		DatabaseURL: os.Getenv("DATABASE_URL"),
 	}
 	if v := os.Getenv("HTTP_ADDR"); v != "" {
