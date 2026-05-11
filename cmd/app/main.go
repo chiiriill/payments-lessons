@@ -44,13 +44,18 @@ func main() {
 	app := fiber.New(fiber.Config{AppName: cfg.AppName})
 	httpHandler.New(createPayment, getPayment, checkPayment, refundPayment, receiveWebhook).Register(app)
 
+	log.Printf("%s listening on %s", cfg.AppName, cfg.HTTPAddr)
 	go func() {
 		if err := app.Listen(cfg.HTTPAddr); err != nil {
-			log.Println(err)
+			log.Printf("server error: %v", err)
 			stop()
 		}
 	}()
 
 	<-ctx.Done()
-	_ = app.Shutdown()
+	log.Println("shutting down...")
+	if err := app.ShutdownWithTimeout(cfg.ShutdownTimeout); err != nil {
+		log.Printf("shutdown timeout exceeded: %v", err)
+	}
+	log.Println("shutdown complete")
 }
