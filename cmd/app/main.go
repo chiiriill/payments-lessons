@@ -10,10 +10,14 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"stepik-payments-course/internal/config"
-	"stepik-payments-course/internal/httpapi"
-	"stepik-payments-course/internal/payment"
-	mockprovider "stepik-payments-course/internal/provider/mock"
-	"stepik-payments-course/internal/storage/postgres"
+	httpHandler "stepik-payments-course/internal/infrastructure/http/handler"
+	paymentsRepo "stepik-payments-course/internal/infrastructure/repository/payments"
+	mockProvider "stepik-payments-course/internal/provider/mock"
+	"stepik-payments-course/internal/usecase/checkPaymentUseCase"
+	"stepik-payments-course/internal/usecase/createPaymentUseCase"
+	"stepik-payments-course/internal/usecase/getPaymentUseCase"
+	"stepik-payments-course/internal/usecase/receiveWebhookUseCase"
+	"stepik-payments-course/internal/usecase/refundPaymentUseCase"
 )
 
 func main() {
@@ -31,9 +35,17 @@ func main() {
 	}
 	defer db.Close()
 
-	service := payment.NewService(postgres.NewRepository(db), mockprovider.NewProvider())
+	repo := paymentsRepo.NewRepo(db)
+	provider := mockProvider.NewProvider()
+
+	createPayment := createPaymentUseCase.New(repo, provider)
+	getPayment := getPaymentUseCase.New(repo)
+	checkPayment := checkPaymentUseCase.New(repo, provider)
+	refundPayment := refundPaymentUseCase.New(repo, provider)
+	receiveWebhook := receiveWebhookUseCase.New(repo)
+
 	app := fiber.New()
-	httpapi.NewHandler(service).Register(app)
+	httpHandler.New(createPayment, getPayment, checkPayment, refundPayment, receiveWebhook).Register(app)
 
 	go func() {
 		if err := app.Listen(cfg.HTTPAddr); err != nil {

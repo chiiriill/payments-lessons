@@ -3,7 +3,10 @@ package mock
 import (
 	"context"
 
-	"stepik-payments-course/internal/payment"
+	"stepik-payments-course/internal/common/status"
+	"stepik-payments-course/internal/usecase/checkPaymentUseCase"
+	"stepik-payments-course/internal/usecase/createPaymentUseCase"
+	"stepik-payments-course/internal/usecase/refundPaymentUseCase"
 )
 
 type Provider struct{}
@@ -12,15 +15,18 @@ func NewProvider() *Provider {
 	return &Provider{}
 }
 
-func (p *Provider) CreatePayment(ctx context.Context, pay payment.Payment) (string, string, error) {
-	providerID := "provider_" + pay.ID
-	return providerID, "https://mock-provider.local/pay/" + providerID, nil
+func (p *Provider) CreatePayment(_ context.Context, req createPaymentUseCase.ProviderCreateRequest) (createPaymentUseCase.ProviderCreateResponse, error) {
+	providerID := "provider_" + req.PaymentID
+	return createPaymentUseCase.ProviderCreateResponse{
+		ProviderPaymentID: providerID,
+		PaymentURL:        "https://mock-provider.local/pay/" + providerID,
+	}, nil
 }
 
-func (p *Provider) CheckPayment(ctx context.Context, providerPaymentID string) (string, error) {
-	return payment.StatusPending, nil
+func (p *Provider) CheckPayment(_ context.Context, _ string) (checkPaymentUseCase.ProviderStatusResponse, error) {
+	return checkPaymentUseCase.ProviderStatusResponse{Status: status.Pending}, nil
 }
 
-func (p *Provider) RefundPayment(ctx context.Context, providerPaymentID string, amount int64) error {
+func (p *Provider) RefundPayment(_ context.Context, _ refundPaymentUseCase.ProviderRefundRequest) error {
 	return nil
 }

@@ -1,0 +1,58 @@
+package handler
+
+import (
+	"errors"
+
+	"github.com/gofiber/fiber/v2"
+	"stepik-payments-course/internal/common/apperror"
+	"stepik-payments-course/internal/usecase/checkPaymentUseCase"
+	"stepik-payments-course/internal/usecase/createPaymentUseCase"
+	"stepik-payments-course/internal/usecase/getPaymentUseCase"
+	"stepik-payments-course/internal/usecase/receiveWebhookUseCase"
+	"stepik-payments-course/internal/usecase/refundPaymentUseCase"
+)
+
+type Handler struct {
+	createPayment  *createPaymentUseCase.UseCase
+	getPayment     *getPaymentUseCase.UseCase
+	checkPayment   *checkPaymentUseCase.UseCase
+	refundPayment  *refundPaymentUseCase.UseCase
+	receiveWebhook *receiveWebhookUseCase.UseCase
+}
+
+func New(
+	createPayment *createPaymentUseCase.UseCase,
+	getPayment *getPaymentUseCase.UseCase,
+	checkPayment *checkPaymentUseCase.UseCase,
+	refundPayment *refundPaymentUseCase.UseCase,
+	receiveWebhook *receiveWebhookUseCase.UseCase,
+) *Handler {
+	return &Handler{
+		createPayment:  createPayment,
+		getPayment:     getPayment,
+		checkPayment:   checkPayment,
+		refundPayment:  refundPayment,
+		receiveWebhook: receiveWebhook,
+	}
+}
+
+func (h *Handler) Register(app *fiber.App) {
+	app.Get("/health", func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{"status": "ok"})
+	})
+	app.Post("/payments", h.CreatePayment)
+	app.Get("/payments/:id", h.GetPayment)
+	app.Post("/payments/:id/check", h.CheckPayment)
+	app.Post("/payments/:id/refund", h.RefundPayment)
+	app.Post("/webhooks/mock-provider", h.ReceiveWebhook)
+}
+
+func handleError(c *fiber.Ctx, err error) error {
+	if errors.Is(err, apperror.ErrNotFound) {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": err.Error()})
+	}
+	if errors.Is(err, apperror.ErrInvalidTransition) {
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "internal server error"})
+}
