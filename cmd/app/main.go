@@ -15,6 +15,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"stepik-payments-course/internal/config"
 	httpHandler "stepik-payments-course/internal/infrastructure/http/handler"
+	"stepik-payments-course/internal/migrate"
 	httpMiddleware "stepik-payments-course/internal/infrastructure/http/middleware"
 	providerClient "stepik-payments-course/internal/infrastructure/provider/mockclient"
 	paymentsRepo "stepik-payments-course/internal/infrastructure/repository/payments"
@@ -38,6 +39,10 @@ func main() {
 		log.Fatal(err)
 	}
 	defer db.Close()
+
+	if err := migrate.Run(ctx, db); err != nil {
+		log.Fatal("migrate:", err)
+	}
 
 	repo := paymentsRepo.NewRepo(db)
 	provider := providerClient.New(cfg.ProviderBaseURL, cfg.ProviderTimeout, cfg.ProviderRetryCount)

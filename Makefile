@@ -1,4 +1,4 @@
-.PHONY: up down restart logs build test lint
+.PHONY: up down down-clean build logs test psql lint
 
 up:
 	docker compose up --build -d
@@ -9,18 +9,17 @@ down:
 down-clean:
 	docker compose down -v
 
-restart:
-	docker compose restart app worker
+build:
+	docker compose build
 
 logs:
-	docker compose logs -f app worker
-
-build:
-	go build ./...
+	docker compose logs -f
 
 test:
 	go test ./...
 
-test-integration:
-	DATABASE_URL=postgres://postgres:postgres@localhost:5432/payments?sslmode=disable \
-	go test ./internal/infrastructure/repository/payments/...
+psql:
+	docker compose exec postgres psql -U $${POSTGRES_USER:-postgres} -d $${POSTGRES_DB:-payments}
+
+lint:
+	go vet ./...
