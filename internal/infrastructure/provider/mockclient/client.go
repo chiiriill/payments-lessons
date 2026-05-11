@@ -16,12 +16,14 @@ import (
 type Client struct {
 	baseURL    string
 	httpClient *http.Client
+	retries    int
 }
 
-func New(baseURL string, timeout time.Duration) *Client {
+func New(baseURL string, timeout time.Duration, retries int) *Client {
 	return &Client{
 		baseURL:    baseURL,
 		httpClient: &http.Client{Timeout: timeout},
+		retries:    retries,
 	}
 }
 
@@ -43,6 +45,23 @@ func (c *Client) RefundPayment(ctx context.Context, req refundPaymentUseCase.Pro
 }
 
 func (c *Client) do(ctx context.Context, method string, path string, body any, out any) error {
+	var lastErr error
+	attempts := c.retries + 1
+	for attempt := 0; attempt < attempts; attempt++ {
+		err := c.doOnce(ctx, method, path, body, out)
+		if err == nil {
+			return nil
+		}
+		lastErr = err
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		time.Sleep(time.Duration(attempt+1) * 100 * time.Millisecond)
+	}
+	return lastErr
+}
+
+func (c *Client) doOnce(ctx context.Context, method string, path string, body any, out any) error {
 	var payload bytes.Buffer
 	if body != nil {
 		if err := json.NewEncoder(&payload).Encode(body); err != nil {
