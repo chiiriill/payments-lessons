@@ -1,7 +1,10 @@
 package getPaymentUseCase
 
-import "context"
+import (
+	"context"
+	"stepik-payments-course/internal/domain"
+)
 
 type repo interface {
-	GetPaymentForGetPayment(ctx context.Context, paymentID string) (Payment, error)
+	GetPaymentForGetPayment(ctx context.Context, paymentID string) (domain.Payment, error)
 }

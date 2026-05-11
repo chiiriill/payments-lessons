@@ -1,10 +1,13 @@
 package checkPaymentUseCase
 
-import "context"
+import (
+	"context"
+	"stepik-payments-course/internal/domain"
+)
 
 type repo interface {
-	GetPaymentForCheckPayment(ctx context.Context, paymentID string) (Payment, error)
-	SetPaidForCheckPayment(ctx context.Context, paymentID string) (Payment, error)
+	GetPaymentForCheckPayment(ctx context.Context, paymentID string) (domain.Payment, error)
+	SetPaidForCheckPayment(ctx context.Context, paymentID string) (domain.Payment, error)
 }
 
 type provider interface {

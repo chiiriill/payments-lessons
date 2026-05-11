@@ -1,6 +1,9 @@
 package createPaymentUseCase
 
-import "context"
+import (
+	"context"
+	"stepik-payments-course/internal/domain"
+)
 
 type UseCase struct {
 	repo     repo
@@ -11,10 +14,10 @@ func New(repo repo, provider provider) *UseCase {
 	return &UseCase{repo: repo, provider: provider}
 }
 
-func (u *UseCase) Execute(ctx context.Context, req Request) (Payment, error) {
+func (u *UseCase) Execute(ctx context.Context, req Request) (domain.Payment, error) {
 	payment, existed, err := u.repo.CreatePaymentByIdempotencyKey(ctx, req)
 	if err != nil {
-		return Payment{}, err
+		return domain.Payment{}, err
 	}
 	if existed {
 		return payment, nil
@@ -28,7 +31,7 @@ func (u *UseCase) Execute(ctx context.Context, req Request) (Payment, error) {
 		Description: payment.Description,
 	})
 	if err != nil {
-		return Payment{}, err
+		return domain.Payment{}, err
 	}
 
 	return u.repo.SetProviderDataForCreatePayment(ctx, payment.ID, providerRes.ProviderPaymentID, providerRes.PaymentURL)

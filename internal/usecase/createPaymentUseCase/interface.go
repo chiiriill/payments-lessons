@@ -1,10 +1,13 @@
 package createPaymentUseCase
 
-import "context"
+import (
+	"context"
+	"stepik-payments-course/internal/domain"
+)
 
 type repo interface {
-	CreatePaymentByIdempotencyKey(ctx context.Context, req Request) (Payment, bool, error)
-	SetProviderDataForCreatePayment(ctx context.Context, paymentID string, providerPaymentID string, paymentURL string) (Payment, error)
+	CreatePaymentByIdempotencyKey(ctx context.Context, req Request) (domain.Payment, bool, error)
+	SetProviderDataForCreatePayment(ctx context.Context, paymentID string, providerPaymentID string, paymentURL string) (domain.Payment, error)
 }
 
 type provider interface {

@@ -1,10 +1,13 @@
 package refundPaymentUseCase
 
-import "context"
+import (
+	"context"
+	"stepik-payments-course/internal/domain"
+)
 
 type repo interface {
-	GetPaymentForRefundPayment(ctx context.Context, paymentID string) (Payment, error)
-	SetRefundedForRefundPayment(ctx context.Context, paymentID string) (Payment, error)
+	GetPaymentForRefundPayment(ctx context.Context, paymentID string) (domain.Payment, error)
+	SetRefundedForRefundPayment(ctx context.Context, paymentID string) (domain.Payment, error)
 }
 
 type provider interface {

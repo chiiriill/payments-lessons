@@ -2,8 +2,8 @@ package checkPaymentUseCase
 
 import (
 	"context"
-
 	"stepik-payments-course/internal/common/status"
+	"stepik-payments-course/internal/domain"
 )
 
 type UseCase struct {
@@ -15,10 +15,10 @@ func New(repo repo, provider provider) *UseCase {
 	return &UseCase{repo: repo, provider: provider}
 }
 
-func (u *UseCase) Execute(ctx context.Context, req Request) (Payment, error) {
+func (u *UseCase) Execute(ctx context.Context, req Request) (domain.Payment, error) {
 	payment, err := u.repo.GetPaymentForCheckPayment(ctx, req.PaymentID)
 	if err != nil {
-		return Payment{}, err
+		return domain.Payment{}, err
 	}
 	if payment.ProviderPaymentID == "" {
 		return payment, nil
@@ -26,7 +26,7 @@ func (u *UseCase) Execute(ctx context.Context, req Request) (Payment, error) {
 
 	providerRes, err := u.provider.CheckPayment(ctx, payment.ProviderPaymentID)
 	if err != nil {
-		return Payment{}, err
+		return domain.Payment{}, err
 	}
 	if providerRes.Status == status.Paid && payment.Status == status.Pending {
 		return u.repo.SetPaidForCheckPayment(ctx, payment.ID)
