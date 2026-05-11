@@ -47,10 +47,16 @@ func main() {
 		"poll_interval", pollInterval,
 		"stale_duration", staleDuration,
 	)
+
+	go func() {
+		<-ctx.Done()
+		logger.Info("shutdown signal received, waiting for current poll to finish")
+	}()
+
 	for {
 		select {
 		case <-ctx.Done():
-			logger.InfoContext(ctx, "stale payments worker stopped")
+			logger.Info("stale payments worker stopped")
 			return
 		case <-ticker.C:
 			runPoll(ctx, uc, logger)
@@ -59,7 +65,7 @@ func main() {
 }
 
 func runPoll(ctx context.Context, uc *processStalePaymentsUseCase.UseCase, logger *slog.Logger) {
-	tickCtx, cancel := context.WithTimeout(ctx, pollTimeout)
+	tickCtx, cancel := context.WithTimeout(context.Background(), pollTimeout)
 	defer cancel()
 
 	defer func() {
