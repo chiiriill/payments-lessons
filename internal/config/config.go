@@ -19,10 +19,10 @@ type Config struct {
 func Load() Config {
 	return Config{
 		AppName:            env("APP_NAME", "payments-service"),
-		HTTPAddr:           env("HTTP_ADDR", ":8080"),
+		HTTPAddr:           env("HTTP_ADDR", ":8081"),
 		ShutdownTimeout:    durationEnv("SHUTDOWN_TIMEOUT", 10*time.Second),
-		DatabaseURL:        env("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/payments?sslmode=disable"),
-		ProviderBaseURL:    env("PROVIDER_BASE_URL", "http://localhost:8081"),
+		DatabaseURL:        env("DATABASE_URL", "postgres://postgres:postgres@localhost:5433/payments?sslmode=disable"),
+		ProviderBaseURL:    env("PROVIDER_BASE_URL", "http://localhost:8082"),
 		ProviderTimeout:    durationEnv("PROVIDER_TIMEOUT", 3*time.Second),
 		ProviderRetryCount: intEnv("PROVIDER_RETRY_COUNT", 2),
 	}

@@ -52,7 +52,7 @@ func main() {
 		providerID := "provider_" + randomID()
 		req.ProviderPaymentID = providerID
 		req.Status = "pending"
-		req.PaymentURL = "http://localhost:8081/pay/" + providerID
+		req.PaymentURL = "http://localhost:8082/pay/" + providerID
 
 		store.mu.Lock()
 		store.payments[providerID] = req
