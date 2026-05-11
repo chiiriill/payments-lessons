@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -51,6 +52,13 @@ func (c *Client) RefundPayment(ctx context.Context, req refundPaymentUseCase.Pro
 	return c.do(ctx, http.MethodPost, "/payments/"+req.ProviderPaymentID+"/refund", body, nil)
 }
 
+// permanentError wraps a 4xx status code — these are never retried.
+type permanentError struct{ statusCode int }
+
+func (e *permanentError) Error() string {
+	return fmt.Sprintf("provider rejected request: status %d", e.statusCode)
+}
+
 func (c *Client) do(ctx context.Context, method string, path string, body any, out any) error {
 	var lastErr error
 	attempts := c.retries + 1
@@ -62,6 +70,10 @@ func (c *Client) do(ctx context.Context, method string, path string, body any, o
 		lastErr = err
 		if ctx.Err() != nil {
 			return ctx.Err()
+		}
+		var pErr *permanentError
+		if errors.As(err, &pErr) {
+			return err
 		}
 		time.Sleep(time.Duration(attempt+1) * 100 * time.Millisecond)
 	}
@@ -92,7 +104,7 @@ func (c *Client) doOnce(ctx context.Context, method string, path string, body an
 		return fmt.Errorf("provider temporary error: status %d", res.StatusCode)
 	}
 	if res.StatusCode >= http.StatusBadRequest {
-		return fmt.Errorf("provider rejected request: status %d", res.StatusCode)
+		return &permanentError{statusCode: res.StatusCode}
 	}
 	if out == nil {
 		return nil
