@@ -2,6 +2,7 @@ package handler
 
 import (
 	"github.com/gofiber/fiber/v2"
+	"stepik-payments-course/internal/infrastructure/http/middleware"
 	"stepik-payments-course/internal/usecase/createPaymentUseCase"
 )
 
@@ -27,6 +28,8 @@ func (h *Handler) CreatePayment(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "only RUB currency is supported"})
 	}
 
+	log := middleware.LoggerFrom(c)
+
 	payment, err := h.createPayment.Execute(c.Context(), createPaymentUseCase.Request{
 		IdempotencyKey: c.Get("Idempotency-Key"),
 		OrderID:        req.OrderID,
@@ -37,5 +40,10 @@ func (h *Handler) CreatePayment(c *fiber.Ctx) error {
 	if err != nil {
 		return handleError(c, err)
 	}
+	log.InfoContext(c.Context(), "payment created",
+		"payment_id", payment.ID,
+		"order_id", payment.OrderID,
+		"amount", payment.Amount,
+	)
 	return c.Status(fiber.StatusCreated).JSON(payment)
 }

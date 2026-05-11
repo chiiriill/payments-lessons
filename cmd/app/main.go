@@ -27,7 +27,8 @@ func main() {
 	defer stop()
 
 	cfg := config.Load()
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})).With("component", "app")
+	slog.SetDefault(logger)
 
 	db, err := pgxpool.New(ctx, cfg.DatabaseURL)
 	if err != nil {

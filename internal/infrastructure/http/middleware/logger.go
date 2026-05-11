@@ -19,10 +19,12 @@ func RequestLogger(logger *slog.Logger) fiber.Handler {
 		}
 		c.Set("X-Request-ID", requestID)
 
+		requestLogger := logger.With("request_id", requestID)
+		c.Locals("logger", requestLogger)
+
 		err := c.Next()
 
-		logger.Info("http request",
-			"request_id", requestID,
+		requestLogger.Info("http request",
 			"method", c.Method(),
 			"path", c.Path(),
 			"status", c.Response().StatusCode(),
@@ -30,6 +32,15 @@ func RequestLogger(logger *slog.Logger) fiber.Handler {
 		)
 		return err
 	}
+}
+
+// LoggerFrom returns the request-scoped logger stored by RequestLogger middleware.
+// Falls back to slog.Default() if the middleware was not registered.
+func LoggerFrom(c *fiber.Ctx) *slog.Logger {
+	if log, ok := c.Locals("logger").(*slog.Logger); ok {
+		return log
+	}
+	return slog.Default()
 }
 
 func newRequestID() string {
