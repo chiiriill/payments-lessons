@@ -8,6 +8,11 @@ import (
 	"stepik-payments-course/internal/common/status"
 )
 
+const (
+	maxRetries = 3
+	retryBase  = 200 * time.Millisecond
+)
+
 type UseCase struct {
 	repo          repo
 	provider      provider
@@ -28,9 +33,9 @@ func (u *UseCase) Execute(ctx context.Context) Result {
 
 	var result Result
 	for _, payment := range payments {
-		providerRes, err := u.provider.CheckPaymentForWorker(ctx, payment.ProviderPaymentID)
+		providerRes, err := u.checkWithRetry(ctx, payment.ProviderPaymentID)
 		if err != nil {
-			u.logger.ErrorContext(ctx, "provider check failed",
+			u.logger.ErrorContext(ctx, "provider check failed after retries",
 				"payment_id", payment.ID,
 				"error", err,
 			)
@@ -57,4 +62,29 @@ func (u *UseCase) Execute(ctx context.Context) Result {
 		)
 	}
 	return result
+}
+
+func (u *UseCase) checkWithRetry(ctx context.Context, providerPaymentID string) (ProviderStatusResponse, error) {
+	var lastErr error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		if attempt > 0 {
+			delay := retryBase * time.Duration(1<<attempt)
+			select {
+			case <-ctx.Done():
+				return ProviderStatusResponse{}, ctx.Err()
+			case <-time.After(delay):
+			}
+		}
+		res, err := u.provider.CheckPaymentForWorker(ctx, providerPaymentID)
+		if err == nil {
+			return res, nil
+		}
+		lastErr = err
+		u.logger.WarnContext(ctx, "provider check attempt failed",
+			"provider_payment_id", providerPaymentID,
+			"attempt", attempt+1,
+			"error", err,
+		)
+	}
+	return ProviderStatusResponse{}, lastErr
 }
