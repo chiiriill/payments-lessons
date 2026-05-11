@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"time"
 
@@ -115,6 +116,32 @@ func (r *Repo) SetPaidForReceiveWebhook(ctx context.Context, paymentID string) (
 		RETURNING id, order_id, amount, currency, description, status, provider_payment_id, payment_url, created_at, updated_at`
 	p, err := scanPayment(r.db.QueryRow(ctx, q, paymentID, status.Paid, status.Pending))
 	return p, noRowsAsConflict(err)
+}
+
+func (r *Repo) SetPaidWithOutboxForReceiveWebhook(ctx context.Context, paymentID string) (domain.Payment, error) {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return domain.Payment{}, err
+	}
+	defer tx.Rollback(ctx)
+
+	q := `UPDATE payments SET status = $2, updated_at = now() WHERE id = $1 AND status = $3
+		RETURNING id, order_id, amount, currency, description, status, provider_payment_id, payment_url, created_at, updated_at`
+	payment, err := scanPayment(tx.QueryRow(ctx, q, paymentID, status.Paid, status.Pending))
+	if err != nil {
+		return domain.Payment{}, noRowsAsConflict(err)
+	}
+
+	payload, _ := json.Marshal(map[string]any{
+		"payment_id": payment.ID,
+		"order_id":   payment.OrderID,
+		"amount":     payment.Amount,
+	})
+	if _, err = tx.Exec(ctx, `INSERT INTO outbox_events (event_type, aggregate_id, payload) VALUES ($1, $2, $3)`, "payment.paid", paymentID, payload); err != nil {
+		return domain.Payment{}, err
+	}
+
+	return payment, tx.Commit(ctx)
 }
 
 func (r *Repo) SetFailedForReceiveWebhook(ctx context.Context, paymentID string) (domain.Payment, error) {

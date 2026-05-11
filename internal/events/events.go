@@ -3,6 +3,7 @@ package events
 import (
 	"context"
 	"log/slog"
+	"time"
 )
 
 type Event struct {
@@ -25,4 +26,13 @@ func NewLogPublisher(logger *slog.Logger) *LogPublisher {
 func (p *LogPublisher) Publish(ctx context.Context, event Event) error {
 	p.logger.InfoContext(ctx, "publishing event", "type", event.Type, "payload", event.Payload)
 	return nil
+}
+
+type OutboxEvent struct {
+	ID          int64
+	EventType   string
+	AggregateID string
+	Payload     map[string]any
+	CreatedAt   time.Time
+	PublishedAt *time.Time
 }

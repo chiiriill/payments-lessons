@@ -5,17 +5,15 @@ import (
 	"log/slog"
 
 	"stepik-payments-course/internal/common/status"
-	"stepik-payments-course/internal/events"
 )
 
 type UseCase struct {
-	repo      repo
-	publisher publisher
-	logger    *slog.Logger
+	repo   repo
+	logger *slog.Logger
 }
 
-func New(repo repo, publisher publisher, logger *slog.Logger) *UseCase {
-	return &UseCase{repo: repo, publisher: publisher, logger: logger}
+func New(repo repo, logger *slog.Logger) *UseCase {
+	return &UseCase{repo: repo, logger: logger}
 }
 
 func (u *UseCase) Execute(ctx context.Context, req Request) error {
@@ -58,20 +56,8 @@ func (u *UseCase) Execute(ctx context.Context, req Request) error {
 		return nil
 	}
 	if targetStatus == status.Paid {
-		if _, err = u.repo.SetPaidForReceiveWebhook(ctx, payment.ID); err != nil {
-			return err
-		}
-		// DUAL WRITE: DB transaction committed above, but process may crash before Publish.
-		// If Publish fails, the event is permanently lost — no downstream service learns the payment was paid.
-		_ = u.publisher.Publish(ctx, events.Event{
-			Type: "payment.paid",
-			Payload: map[string]any{
-				"payment_id": payment.ID,
-				"order_id":   payment.OrderID,
-				"amount":     payment.Amount,
-			},
-		})
-		return nil
+		_, err = u.repo.SetPaidWithOutboxForReceiveWebhook(ctx, payment.ID)
+		return err
 	}
 	_, err = u.repo.SetFailedForReceiveWebhook(ctx, payment.ID)
 	return err

@@ -14,7 +14,6 @@ import (
 	httpHandler "stepik-payments-course/internal/infrastructure/http/handler"
 	providerClient "stepik-payments-course/internal/infrastructure/provider/mockclient"
 	paymentsRepo "stepik-payments-course/internal/infrastructure/repository/payments"
-	"stepik-payments-course/internal/events"
 	"stepik-payments-course/internal/usecase/checkPaymentUseCase"
 	"stepik-payments-course/internal/usecase/createPaymentUseCase"
 	"stepik-payments-course/internal/usecase/getPaymentUseCase"
@@ -37,13 +36,12 @@ func main() {
 
 	repo := paymentsRepo.NewRepo(db)
 	provider := providerClient.New(cfg.ProviderBaseURL, cfg.ProviderTimeout, cfg.ProviderRetryCount)
-	eventPublisher := events.NewLogPublisher(logger)
 
 	createPayment := createPaymentUseCase.New(repo, provider, logger)
 	getPayment := getPaymentUseCase.New(repo)
 	checkPayment := checkPaymentUseCase.New(repo, provider)
 	refundPayment := refundPaymentUseCase.New(repo, provider)
-	receiveWebhook := receiveWebhookUseCase.New(repo, eventPublisher, logger)
+	receiveWebhook := receiveWebhookUseCase.New(repo, logger)
 
 	app := fiber.New(fiber.Config{AppName: cfg.AppName})
 	httpHandler.New(createPayment, getPayment, checkPayment, refundPayment, receiveWebhook, cfg.WebhookSecret).Register(app)
