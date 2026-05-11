@@ -5,6 +5,7 @@ import (
 	"log"
 	"log/slog"
 	"net/http"
+	httppprof "net/http/pprof"
 	"os"
 	"os/signal"
 	"syscall"
@@ -55,7 +56,12 @@ func main() {
 	go func() {
 		mux := http.NewServeMux()
 		mux.Handle("/metrics", promhttp.Handler())
-		logger.Info("metrics server started", "addr", cfg.MetricsAddr)
+		mux.HandleFunc("/debug/pprof/", httppprof.Index)
+		mux.HandleFunc("/debug/pprof/cmdline", httppprof.Cmdline)
+		mux.HandleFunc("/debug/pprof/profile", httppprof.Profile)
+		mux.HandleFunc("/debug/pprof/symbol", httppprof.Symbol)
+		mux.HandleFunc("/debug/pprof/trace", httppprof.Trace)
+		logger.Info("admin server started", "addr", cfg.MetricsAddr)
 		if err := http.ListenAndServe(cfg.MetricsAddr, mux); err != nil {
 			logger.Error("metrics server error", "error", err)
 		}

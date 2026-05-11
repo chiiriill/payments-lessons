@@ -10,12 +10,25 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"stepik-payments-course/internal/config"
 	"stepik-payments-course/internal/events"
 	providerClient "stepik-payments-course/internal/infrastructure/provider/mockclient"
 	paymentsRepo "stepik-payments-course/internal/infrastructure/repository/payments"
 	"stepik-payments-course/internal/usecase/processOutboxEventsUseCase"
 	"stepik-payments-course/internal/usecase/processStalePaymentsUseCase"
+)
+
+var (
+	stalePaymentsProcessed = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "stale_payments_processed_total",
+		Help: "Total stale payments successfully resolved by the worker.",
+	})
+	stalePaymentsFailed = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "stale_payments_failed_total",
+		Help: "Total stale payment checks that failed after all retries.",
+	})
 )
 
 const (
@@ -86,7 +99,9 @@ func runPoll(ctx context.Context, uc *processStalePaymentsUseCase.UseCase, logge
 		}
 	}()
 
-	uc.Execute(tickCtx)
+	result := uc.Execute(tickCtx)
+	stalePaymentsProcessed.Add(float64(result.Processed))
+	stalePaymentsFailed.Add(float64(result.Failed))
 }
 
 func runOutboxPoll(ctx context.Context, uc *processOutboxEventsUseCase.UseCase, logger *slog.Logger) {
