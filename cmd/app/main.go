@@ -41,7 +41,7 @@ func main() {
 	getPayment := getPaymentUseCase.New(repo)
 	checkPayment := checkPaymentUseCase.New(repo, provider)
 	refundPayment := refundPaymentUseCase.New(repo, provider)
-	receiveWebhook := receiveWebhookUseCase.New(repo)
+	receiveWebhook := receiveWebhookUseCase.New(repo, logger)
 
 	app := fiber.New(fiber.Config{AppName: cfg.AppName})
 	httpHandler.New(createPayment, getPayment, checkPayment, refundPayment, receiveWebhook, cfg.WebhookSecret).Register(app)

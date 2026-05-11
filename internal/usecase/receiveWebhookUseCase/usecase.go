@@ -2,16 +2,18 @@ package receiveWebhookUseCase
 
 import (
 	"context"
+	"log/slog"
 
 	"stepik-payments-course/internal/common/status"
 )
 
 type UseCase struct {
-	repo repo
+	repo   repo
+	logger *slog.Logger
 }
 
-func New(repo repo) *UseCase {
-	return &UseCase{repo: repo}
+func New(repo repo, logger *slog.Logger) *UseCase {
+	return &UseCase{repo: repo, logger: logger}
 }
 
 func (u *UseCase) Execute(ctx context.Context, req Request) error {
@@ -22,6 +24,7 @@ func (u *UseCase) Execute(ctx context.Context, req Request) error {
 	case "payment.failed":
 		targetStatus = status.Failed
 	default:
+		u.logger.InfoContext(ctx, "webhook event ignored", "event_id", req.EventID, "event", req.Event)
 		return nil
 	}
 
@@ -30,6 +33,13 @@ func (u *UseCase) Execute(ctx context.Context, req Request) error {
 		return err
 	}
 	if !status.CanTransition(payment.Status, targetStatus) {
+		u.logger.InfoContext(ctx, "duplicate webhook ignored",
+			"event_id", req.EventID,
+			"event", req.Event,
+			"payment_id", payment.ID,
+			"current_status", payment.Status,
+			"target_status", targetStatus,
+		)
 		return nil
 	}
 	if targetStatus == status.Paid {

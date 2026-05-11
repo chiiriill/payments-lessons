@@ -21,6 +21,7 @@ func (h *Handler) ReceiveWebhook(c *fiber.Ctx) error {
 	}
 
 	var req struct {
+		EventID           string `json:"event_id"`
 		ProviderPaymentID string `json:"provider_payment_id"`
 		Event             string `json:"event"`
 	}
@@ -28,6 +29,7 @@ func (h *Handler) ReceiveWebhook(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid json body"})
 	}
 	if err := h.receiveWebhook.Execute(c.Context(), receiveWebhookUseCase.Request{
+		EventID:           req.EventID,
 		ProviderPaymentID: req.ProviderPaymentID,
 		Event:             req.Event,
 	}); err != nil {
