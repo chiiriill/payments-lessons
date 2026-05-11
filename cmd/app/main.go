@@ -3,10 +3,13 @@ package main
 import (
 	"context"
 	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"github.com/gofiber/fiber/v2"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"stepik-payments-course/internal/config"
 	httpHandler "stepik-payments-course/internal/infrastructure/http/handler"
 	providerClient "stepik-payments-course/internal/infrastructure/provider/mockclient"
@@ -16,9 +19,6 @@ import (
 	"stepik-payments-course/internal/usecase/getPaymentUseCase"
 	"stepik-payments-course/internal/usecase/receiveWebhookUseCase"
 	"stepik-payments-course/internal/usecase/refundPaymentUseCase"
-
-	"github.com/gofiber/fiber/v2"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func main() {
@@ -26,6 +26,7 @@ func main() {
 	defer stop()
 
 	cfg := config.Load()
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
 	db, err := pgxpool.New(ctx, cfg.DatabaseURL)
 	if err != nil {
@@ -36,7 +37,7 @@ func main() {
 	repo := paymentsRepo.NewRepo(db)
 	provider := providerClient.New(cfg.ProviderBaseURL, cfg.ProviderTimeout, cfg.ProviderRetryCount)
 
-	createPayment := createPaymentUseCase.New(repo, provider)
+	createPayment := createPaymentUseCase.New(repo, provider, logger)
 	getPayment := getPaymentUseCase.New(repo)
 	checkPayment := checkPaymentUseCase.New(repo, provider)
 	refundPayment := refundPaymentUseCase.New(repo, provider)
@@ -45,18 +46,18 @@ func main() {
 	app := fiber.New(fiber.Config{AppName: cfg.AppName})
 	httpHandler.New(createPayment, getPayment, checkPayment, refundPayment, receiveWebhook).Register(app)
 
-	log.Printf("%s listening on %s", cfg.AppName, cfg.HTTPAddr)
+	logger.Info("starting", "app", cfg.AppName, "addr", cfg.HTTPAddr)
 	go func() {
 		if err := app.Listen(cfg.HTTPAddr); err != nil {
-			log.Printf("server error: %v", err)
+			logger.Error("server error", "error", err)
 			stop()
 		}
 	}()
 
 	<-ctx.Done()
-	log.Println("shutting down...")
+	logger.Info("shutting down")
 	if err := app.ShutdownWithTimeout(cfg.ShutdownTimeout); err != nil {
-		log.Printf("shutdown timeout exceeded: %v", err)
+		logger.Error("shutdown timeout exceeded", "error", err)
 	}
-	log.Println("shutdown complete")
+	logger.Info("shutdown complete")
 }

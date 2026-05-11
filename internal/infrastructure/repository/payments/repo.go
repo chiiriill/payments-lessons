@@ -47,6 +47,12 @@ func (r *Repo) CreatePaymentByIdempotencyKey(ctx context.Context, req createPaym
 	return payment, false, nil
 }
 
+func (r *Repo) SetPaymentFailedForCreatePayment(ctx context.Context, paymentID string) error {
+	q := `UPDATE payments SET status = $2, updated_at = now() WHERE id = $1`
+	_, err := r.db.Exec(ctx, q, paymentID, status.Failed)
+	return err
+}
+
 func (r *Repo) SetProviderDataForCreatePayment(ctx context.Context, paymentID string, providerPaymentID string, paymentURL string) (domain.Payment, error) {
 	q := `UPDATE payments SET provider_payment_id = $2, payment_url = $3, updated_at = now() WHERE id = $1
 		RETURNING id, order_id, amount, currency, description, status, provider_payment_id, payment_url, created_at, updated_at`
