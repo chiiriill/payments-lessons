@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"stepik-payments-course/internal/config"
 	httpHandler "stepik-payments-course/internal/infrastructure/http/handler"
+	httpMiddleware "stepik-payments-course/internal/infrastructure/http/middleware"
 	providerClient "stepik-payments-course/internal/infrastructure/provider/mockclient"
 	paymentsRepo "stepik-payments-course/internal/infrastructure/repository/payments"
 	"stepik-payments-course/internal/usecase/checkPaymentUseCase"
@@ -44,6 +45,7 @@ func main() {
 	receiveWebhook := receiveWebhookUseCase.New(repo, logger)
 
 	app := fiber.New(fiber.Config{AppName: cfg.AppName})
+	app.Use(httpMiddleware.RequestLogger(logger))
 	httpHandler.New(createPayment, getPayment, checkPayment, refundPayment, receiveWebhook, cfg.WebhookSecret).Register(app)
 
 	logger.Info("starting", "app", cfg.AppName, "addr", cfg.HTTPAddr)
