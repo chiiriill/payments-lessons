@@ -18,6 +18,7 @@ import (
 
 const (
 	pollInterval  = 30 * time.Second
+	pollTimeout   = 25 * time.Second
 	staleDuration = 5 * time.Minute
 )
 
@@ -52,7 +53,20 @@ func main() {
 			logger.InfoContext(ctx, "stale payments worker stopped")
 			return
 		case <-ticker.C:
-			uc.Execute(ctx)
+			runPoll(ctx, uc, logger)
 		}
 	}
+}
+
+func runPoll(ctx context.Context, uc *processStalePaymentsUseCase.UseCase, logger *slog.Logger) {
+	tickCtx, cancel := context.WithTimeout(ctx, pollTimeout)
+	defer cancel()
+
+	defer func() {
+		if r := recover(); r != nil {
+			logger.ErrorContext(ctx, "poll panicked", "panic", r)
+		}
+	}()
+
+	uc.Execute(tickCtx)
 }
