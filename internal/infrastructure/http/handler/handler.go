@@ -54,5 +54,11 @@ func handleError(c *fiber.Ctx, err error) error {
 	if errors.Is(err, apperror.ErrInvalidTransition) {
 		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": err.Error()})
 	}
+	if errors.Is(err, apperror.ErrProviderTemporary) {
+		return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{"error": "payment provider unavailable"})
+	}
+	if errors.Is(err, apperror.ErrProviderPermanent) {
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{"error": "payment provider rejected request"})
+	}
 	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "internal server error"})
 }

@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
 
+	"stepik-payments-course/internal/common/apperror"
 	"stepik-payments-course/internal/usecase/checkPaymentUseCase"
 	"stepik-payments-course/internal/usecase/createPaymentUseCase"
 	"stepik-payments-course/internal/usecase/refundPaymentUseCase"
@@ -56,6 +58,9 @@ func (c *Client) do(ctx context.Context, method string, path string, body any, o
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
+		if !errors.Is(err, apperror.ErrProviderTemporary) {
+			return err
+		}
 		time.Sleep(time.Duration(attempt+1) * 100 * time.Millisecond)
 	}
 	return lastErr
@@ -77,15 +82,15 @@ func (c *Client) doOnce(ctx context.Context, method string, path string, body an
 
 	res, err := c.httpClient.Do(req)
 	if err != nil {
-		return err
+		return fmt.Errorf("%w: %w", apperror.ErrProviderTemporary, err)
 	}
 	defer res.Body.Close()
 
 	if res.StatusCode >= http.StatusInternalServerError {
-		return fmt.Errorf("provider temporary error: status %d", res.StatusCode)
+		return fmt.Errorf("%w: status %d", apperror.ErrProviderTemporary, res.StatusCode)
 	}
 	if res.StatusCode >= http.StatusBadRequest {
-		return fmt.Errorf("provider rejected request: status %d", res.StatusCode)
+		return fmt.Errorf("%w: status %d", apperror.ErrProviderPermanent, res.StatusCode)
 	}
 	if out == nil {
 		return nil
