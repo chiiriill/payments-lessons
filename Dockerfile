@@ -3,9 +3,9 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /bin/app ./cmd/app
+RUN go build -o /bin/payments ./cmd/app
 
-FROM alpine:3.21
+FROM alpine:3.20
 RUN apk --no-cache add ca-certificates tzdata
-COPY --from=build /bin/app /bin/app
-ENTRYPOINT ["/bin/app"]
+COPY --from=build /bin/payments /bin/payments
+ENTRYPOINT ["/bin/payments"]
