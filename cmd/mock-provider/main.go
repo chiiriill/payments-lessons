@@ -52,7 +52,7 @@ func main() {
 		providerID := "provider_" + randomID()
 		req.ProviderPaymentID = providerID
 		req.Status = "pending"
-		req.PaymentURL = "http://localhost:8082/pay/" + providerID
+		req.PaymentURL = "http://localhost:8081/pay/" + providerID
 
 		store.mu.Lock()
 		store.payments[providerID] = req
@@ -188,7 +188,7 @@ func main() {
 		})
 	})
 
-	log.Fatal(app.Listen(env("PROVIDER_HTTP_ADDR", ":8082")))
+	log.Fatal(app.Listen(env("PROVIDER_HTTP_ADDR", ":8081")))
 }
 
 func sign(secret string, body []byte) string {
