@@ -70,9 +70,10 @@ func (r *Repo) GetPaymentForCheckPayment(ctx context.Context, paymentID string) 
 }
 
 func (r *Repo) SetPaidForCheckPayment(ctx context.Context, paymentID string) (domain.Payment, error) {
-	q := `UPDATE payments SET status = $2, updated_at = now() WHERE id = $1
+	q := `UPDATE payments SET status = $2, updated_at = now() WHERE id = $1 AND status = $3
 		RETURNING id, order_id, amount, currency, description, status, provider_payment_id, payment_url, created_at, updated_at`
-	return scanPayment(r.db.QueryRow(ctx, q, paymentID, status.Paid))
+	p, err := scanPayment(r.db.QueryRow(ctx, q, paymentID, status.Paid, status.Pending))
+	return p, noRowsAsConflict(err)
 }
 
 func (r *Repo) GetPaymentForRefundPayment(ctx context.Context, paymentID string) (domain.Payment, error) {
@@ -81,9 +82,10 @@ func (r *Repo) GetPaymentForRefundPayment(ctx context.Context, paymentID string)
 }
 
 func (r *Repo) SetRefundedForRefundPayment(ctx context.Context, paymentID string) (domain.Payment, error) {
-	q := `UPDATE payments SET status = $2, updated_at = now() WHERE id = $1
+	q := `UPDATE payments SET status = $2, updated_at = now() WHERE id = $1 AND status = $3
 		RETURNING id, order_id, amount, currency, description, status, provider_payment_id, payment_url, created_at, updated_at`
-	return scanPayment(r.db.QueryRow(ctx, q, paymentID, status.Refunded))
+	p, err := scanPayment(r.db.QueryRow(ctx, q, paymentID, status.Refunded, status.Paid))
+	return p, noRowsAsConflict(err)
 }
 
 func (r *Repo) MarkEventProcessedForReceiveWebhook(ctx context.Context, eventID string) (bool, error) {
@@ -101,15 +103,17 @@ func (r *Repo) GetPaymentByProviderIDForReceiveWebhook(ctx context.Context, prov
 }
 
 func (r *Repo) SetPaidForReceiveWebhook(ctx context.Context, paymentID string) (domain.Payment, error) {
-	q := `UPDATE payments SET status = $2, updated_at = now() WHERE id = $1
+	q := `UPDATE payments SET status = $2, updated_at = now() WHERE id = $1 AND status = $3
 		RETURNING id, order_id, amount, currency, description, status, provider_payment_id, payment_url, created_at, updated_at`
-	return scanPayment(r.db.QueryRow(ctx, q, paymentID, status.Paid))
+	p, err := scanPayment(r.db.QueryRow(ctx, q, paymentID, status.Paid, status.Pending))
+	return p, noRowsAsConflict(err)
 }
 
 func (r *Repo) SetFailedForReceiveWebhook(ctx context.Context, paymentID string) (domain.Payment, error) {
-	q := `UPDATE payments SET status = $2, updated_at = now() WHERE id = $1
+	q := `UPDATE payments SET status = $2, updated_at = now() WHERE id = $1 AND status = $3
 		RETURNING id, order_id, amount, currency, description, status, provider_payment_id, payment_url, created_at, updated_at`
-	return scanPayment(r.db.QueryRow(ctx, q, paymentID, status.Failed))
+	p, err := scanPayment(r.db.QueryRow(ctx, q, paymentID, status.Failed, status.Pending))
+	return p, noRowsAsConflict(err)
 }
 
 func (r *Repo) getByIdempotencyKey(ctx context.Context, key string) (domain.Payment, error) {
@@ -134,6 +138,13 @@ func newID(prefix string) (string, error) {
 func noRows(err error) error {
 	if errors.Is(err, pgx.ErrNoRows) {
 		return apperror.ErrNotFound
+	}
+	return err
+}
+
+func noRowsAsConflict(err error) error {
+	if errors.Is(err, apperror.ErrNotFound) {
+		return apperror.ErrInvalidTransition
 	}
 	return err
 }
