@@ -86,6 +86,15 @@ func (r *Repo) SetRefundedForRefundPayment(ctx context.Context, paymentID string
 	return scanPayment(r.db.QueryRow(ctx, q, paymentID, status.Refunded))
 }
 
+func (r *Repo) MarkEventProcessedForReceiveWebhook(ctx context.Context, eventID string) (bool, error) {
+	q := `INSERT INTO webhook_events (event_id) VALUES ($1) ON CONFLICT DO NOTHING`
+	tag, err := r.db.Exec(ctx, q, eventID)
+	if err != nil {
+		return false, err
+	}
+	return tag.RowsAffected() == 1, nil
+}
+
 func (r *Repo) GetPaymentByProviderIDForReceiveWebhook(ctx context.Context, providerPaymentID string) (domain.Payment, error) {
 	q := `SELECT id, order_id, amount, currency, description, status, provider_payment_id, payment_url, created_at, updated_at FROM payments WHERE provider_payment_id = $1`
 	return scanPayment(r.db.QueryRow(ctx, q, providerPaymentID))

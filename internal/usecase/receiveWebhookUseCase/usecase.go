@@ -28,14 +28,27 @@ func (u *UseCase) Execute(ctx context.Context, req Request) error {
 		return nil
 	}
 
+	if req.EventID != "" {
+		isNew, err := u.repo.MarkEventProcessedForReceiveWebhook(ctx, req.EventID)
+		if err != nil {
+			return err
+		}
+		if !isNew {
+			u.logger.InfoContext(ctx, "duplicate webhook event ignored",
+				"event_id", req.EventID,
+				"event", req.Event,
+			)
+			return nil
+		}
+	}
+
 	payment, err := u.repo.GetPaymentByProviderIDForReceiveWebhook(ctx, req.ProviderPaymentID)
 	if err != nil {
 		return err
 	}
 	if !status.CanTransition(payment.Status, targetStatus) {
-		u.logger.InfoContext(ctx, "duplicate webhook ignored",
+		u.logger.InfoContext(ctx, "webhook status transition skipped",
 			"event_id", req.EventID,
-			"event", req.Event,
 			"payment_id", payment.ID,
 			"current_status", payment.Status,
 			"target_status", targetStatus,
