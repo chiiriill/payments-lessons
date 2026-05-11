@@ -25,9 +25,6 @@ func main() {
 	defer stop()
 
 	cfg := config.Load()
-	if cfg.DatabaseURL == "" {
-		log.Fatal("DATABASE_URL is required")
-	}
 
 	db, err := pgxpool.New(ctx, cfg.DatabaseURL)
 	if err != nil {
@@ -36,7 +33,7 @@ func main() {
 	defer db.Close()
 
 	repo := paymentsRepo.NewRepo(db)
-	provider := mockProvider.NewProvider()
+	provider := mockProvider.NewProvider(cfg.ProviderBaseURL, cfg.ProviderTimeout)
 
 	createPayment := createPaymentUseCase.New(repo, provider)
 	getPayment := getPaymentUseCase.New(repo)
@@ -44,7 +41,7 @@ func main() {
 	refundPayment := refundPaymentUseCase.New(repo, provider)
 	receiveWebhook := receiveWebhookUseCase.New(repo)
 
-	app := fiber.New()
+	app := fiber.New(fiber.Config{AppName: cfg.AppName})
 	httpHandler.New(createPayment, getPayment, checkPayment, refundPayment, receiveWebhook).Register(app)
 
 	go func() {

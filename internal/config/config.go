@@ -1,19 +1,58 @@
 package config
 
-import "os"
+import (
+	"fmt"
+	"os"
+	"time"
+)
 
 type Config struct {
-	HTTPAddr    string
-	DatabaseURL string
+	AppName            string
+	HTTPAddr           string
+	DatabaseURL        string
+	ProviderBaseURL    string
+	ProviderTimeout    time.Duration
+	ProviderRetryCount int
 }
 
 func Load() Config {
-	cfg := Config{
-		HTTPAddr:    ":8080",
-		DatabaseURL: os.Getenv("DATABASE_URL"),
+	return Config{
+		AppName:            env("APP_NAME", "payments-service"),
+		HTTPAddr:           env("HTTP_ADDR", ":8081"),
+		DatabaseURL:        env("DATABASE_URL", "postgres://postgres:postgres@localhost:5433/payments?sslmode=disable"),
+		ProviderBaseURL:    env("PROVIDER_BASE_URL", "http://localhost:8082"),
+		ProviderTimeout:    durationEnv("PROVIDER_TIMEOUT", 3*time.Second),
+		ProviderRetryCount: intEnv("PROVIDER_RETRY_COUNT", 2),
 	}
-	if v := os.Getenv("HTTP_ADDR"); v != "" {
-		cfg.HTTPAddr = v
+}
+
+func env(key string, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
 	}
-	return cfg
+	return fallback
+}
+
+func durationEnv(key string, fallback time.Duration) time.Duration {
+	v := os.Getenv(key)
+	if v == "" {
+		return fallback
+	}
+	d, err := time.ParseDuration(v)
+	if err != nil {
+		return fallback
+	}
+	return d
+}
+
+func intEnv(key string, fallback int) int {
+	v := os.Getenv(key)
+	if v == "" {
+		return fallback
+	}
+	var n int
+	if _, err := fmt.Sscanf(v, "%d", &n); err != nil {
+		return fallback
+	}
+	return n
 }
