@@ -11,8 +11,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"stepik-payments-course/internal/config"
 	httpHandler "stepik-payments-course/internal/infrastructure/http/handler"
+	providerClient "stepik-payments-course/internal/infrastructure/provider/mockclient"
 	paymentsRepo "stepik-payments-course/internal/infrastructure/repository/payments"
-	mockProvider "stepik-payments-course/internal/infrastructure/provider/mock"
 	"stepik-payments-course/internal/usecase/checkPaymentUseCase"
 	"stepik-payments-course/internal/usecase/createPaymentUseCase"
 	"stepik-payments-course/internal/usecase/getPaymentUseCase"
@@ -33,7 +33,7 @@ func main() {
 	defer db.Close()
 
 	repo := paymentsRepo.NewRepo(db)
-	provider := mockProvider.NewProvider(cfg.ProviderBaseURL, cfg.ProviderTimeout)
+	provider := providerClient.New(cfg.ProviderBaseURL, cfg.ProviderTimeout)
 
 	createPayment := createPaymentUseCase.New(repo, provider)
 	getPayment := getPaymentUseCase.New(repo)

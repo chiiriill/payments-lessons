@@ -138,7 +138,7 @@ func main() {
 		})
 	})
 
-	log.Fatal(app.Listen(env("PROVIDER_HTTP_ADDR", ":8081")))
+	log.Fatal(app.Listen(env("PROVIDER_HTTP_ADDR", ":8082")))
 }
 
 func sign(secret string, body []byte) string {
