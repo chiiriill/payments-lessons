@@ -50,7 +50,7 @@ func main() {
 	app := fiber.New(fiber.Config{AppName: cfg.AppName})
 	app.Use(httpMiddleware.Metrics())
 	app.Use(httpMiddleware.RequestLogger(logger))
-	httpHandler.New(createPayment, getPayment, checkPayment, refundPayment, receiveWebhook, cfg.WebhookSecret).Register(app)
+	httpHandler.New(createPayment, getPayment, checkPayment, refundPayment, receiveWebhook, cfg.WebhookSecret, db.Ping).Register(app)
 
 	go func() {
 		mux := http.NewServeMux()

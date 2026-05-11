@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"errors"
 
 	"github.com/gofiber/fiber/v2"
@@ -19,6 +20,7 @@ type Handler struct {
 	refundPayment  *refundPaymentUseCase.UseCase
 	receiveWebhook *receiveWebhookUseCase.UseCase
 	webhookSecret  string
+	ping           func(context.Context) error
 }
 
 func New(
@@ -28,6 +30,7 @@ func New(
 	refundPayment *refundPaymentUseCase.UseCase,
 	receiveWebhook *receiveWebhookUseCase.UseCase,
 	webhookSecret string,
+	ping func(context.Context) error,
 ) *Handler {
 	return &Handler{
 		createPayment:  createPayment,
@@ -36,12 +39,22 @@ func New(
 		refundPayment:  refundPayment,
 		receiveWebhook: receiveWebhook,
 		webhookSecret:  webhookSecret,
+		ping:           ping,
 	}
 }
 
 func (h *Handler) Register(app *fiber.App) {
 	app.Get("/health", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{"status": "ok"})
+	})
+	app.Get("/readiness", func(c *fiber.Ctx) error {
+		if err := h.ping(c.Context()); err != nil {
+			return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
+				"status": "unavailable",
+				"error":  "database unreachable",
+			})
+		}
+		return c.JSON(fiber.Map{"status": "ready"})
 	})
 	app.Post("/payments", h.CreatePayment)
 	app.Get("/payments/:id", h.GetPayment)
