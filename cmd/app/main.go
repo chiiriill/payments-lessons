@@ -4,12 +4,14 @@ import (
 	"context"
 	"log"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"stepik-payments-course/internal/config"
 	httpHandler "stepik-payments-course/internal/infrastructure/http/handler"
 	httpMiddleware "stepik-payments-course/internal/infrastructure/http/middleware"
@@ -46,8 +48,18 @@ func main() {
 	receiveWebhook := receiveWebhookUseCase.New(repo, logger)
 
 	app := fiber.New(fiber.Config{AppName: cfg.AppName})
+	app.Use(httpMiddleware.Metrics())
 	app.Use(httpMiddleware.RequestLogger(logger))
 	httpHandler.New(createPayment, getPayment, checkPayment, refundPayment, receiveWebhook, cfg.WebhookSecret).Register(app)
+
+	go func() {
+		mux := http.NewServeMux()
+		mux.Handle("/metrics", promhttp.Handler())
+		logger.Info("metrics server started", "addr", cfg.MetricsAddr)
+		if err := http.ListenAndServe(cfg.MetricsAddr, mux); err != nil {
+			logger.Error("metrics server error", "error", err)
+		}
+	}()
 
 	logger.Info("starting", "app", cfg.AppName, "addr", cfg.HTTPAddr)
 	go func() {

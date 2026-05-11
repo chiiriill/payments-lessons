@@ -9,6 +9,7 @@ import (
 type Config struct {
 	AppName            string
 	HTTPAddr           string
+	MetricsAddr        string
 	ShutdownTimeout    time.Duration
 	DatabaseURL        string
 	ProviderBaseURL    string
@@ -21,6 +22,7 @@ func Load() Config {
 	return Config{
 		AppName:            env("APP_NAME", "payments-service"),
 		HTTPAddr:           env("HTTP_ADDR", ":8081"),
+		MetricsAddr:        env("METRICS_ADDR", ":9090"),
 		ShutdownTimeout:    durationEnv("SHUTDOWN_TIMEOUT", 10*time.Second),
 		DatabaseURL:        env("DATABASE_URL", "postgres://postgres:postgres@localhost:5433/payments?sslmode=disable"),
 		ProviderBaseURL:    env("PROVIDER_BASE_URL", "http://localhost:8082"),
