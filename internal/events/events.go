@@ -7,6 +7,7 @@ import (
 )
 
 type Event struct {
+	EventID     string
 	Type        string
 	AggregateID string
 	Payload     map[string]any
@@ -25,7 +26,12 @@ func NewLogPublisher(logger *slog.Logger) *LogPublisher {
 }
 
 func (p *LogPublisher) Publish(ctx context.Context, event Event) error {
-	p.logger.InfoContext(ctx, "publishing event", "type", event.Type, "aggregate_id", event.AggregateID, "payload", event.Payload)
+	p.logger.InfoContext(ctx, "publishing event",
+		"event_id", event.EventID,
+		"type", event.Type,
+		"aggregate_id", event.AggregateID,
+		"payload", event.Payload,
+	)
 	return nil
 }
 

@@ -3,6 +3,7 @@ package processOutboxEventsUseCase
 import (
 	"context"
 	"log/slog"
+	"strconv"
 
 	"stepik-payments-course/internal/events"
 )
@@ -27,7 +28,12 @@ func (u *UseCase) Execute(ctx context.Context) {
 	}
 
 	for _, e := range pending {
-		if err := u.publisher.Publish(ctx, events.Event{Type: e.EventType, AggregateID: e.AggregateID, Payload: e.Payload}); err != nil {
+		if err := u.publisher.Publish(ctx, events.Event{
+			EventID:     strconv.FormatInt(e.ID, 10),
+			Type:        e.EventType,
+			AggregateID: e.AggregateID,
+			Payload:     e.Payload,
+		}); err != nil {
 			u.logger.WarnContext(ctx, "failed to publish outbox event",
 				"id", e.ID,
 				"event_type", e.EventType,
