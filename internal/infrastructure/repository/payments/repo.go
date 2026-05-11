@@ -14,6 +14,7 @@ import (
 	"stepik-payments-course/internal/common/apperror"
 	"stepik-payments-course/internal/common/status"
 	"stepik-payments-course/internal/domain"
+	"stepik-payments-course/internal/events"
 	"stepik-payments-course/internal/usecase/createPaymentUseCase"
 )
 
@@ -149,6 +150,39 @@ func (r *Repo) SetFailedForReceiveWebhook(ctx context.Context, paymentID string)
 		RETURNING id, order_id, amount, currency, description, status, provider_payment_id, payment_url, created_at, updated_at`
 	p, err := scanPayment(r.db.QueryRow(ctx, q, paymentID, status.Failed, status.Pending))
 	return p, noRowsAsConflict(err)
+}
+
+func (r *Repo) GetPendingOutboxEventsForWorker(ctx context.Context, limit int) ([]events.OutboxEvent, error) {
+	q := `SELECT id, event_type, aggregate_id, payload, created_at
+		FROM outbox_events
+		WHERE published_at IS NULL
+		ORDER BY created_at
+		LIMIT $1`
+	rows, err := r.db.Query(ctx, q, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []events.OutboxEvent
+	for rows.Next() {
+		var e events.OutboxEvent
+		var payloadJSON []byte
+		if err := rows.Scan(&e.ID, &e.EventType, &e.AggregateID, &payloadJSON, &e.CreatedAt); err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal(payloadJSON, &e.Payload); err != nil {
+			return nil, err
+		}
+		result = append(result, e)
+	}
+	return result, rows.Err()
+}
+
+func (r *Repo) MarkOutboxEventPublishedForWorker(ctx context.Context, id int64) error {
+	q := `UPDATE outbox_events SET published_at = now() WHERE id = $1`
+	_, err := r.db.Exec(ctx, q, id)
+	return err
 }
 
 func (r *Repo) GetStalePendingPaymentsForWorker(ctx context.Context, olderThan time.Duration) ([]domain.Payment, error) {

@@ -11,15 +11,19 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"stepik-payments-course/internal/config"
+	"stepik-payments-course/internal/events"
 	providerClient "stepik-payments-course/internal/infrastructure/provider/mockclient"
 	paymentsRepo "stepik-payments-course/internal/infrastructure/repository/payments"
+	"stepik-payments-course/internal/usecase/processOutboxEventsUseCase"
 	"stepik-payments-course/internal/usecase/processStalePaymentsUseCase"
 )
 
 const (
-	pollInterval  = 30 * time.Second
-	pollTimeout   = 25 * time.Second
-	staleDuration = 5 * time.Minute
+	pollInterval   = 30 * time.Second
+	pollTimeout    = 25 * time.Second
+	staleDuration  = 5 * time.Minute
+	outboxInterval = 5 * time.Second
+	outboxTimeout  = 4 * time.Second
 )
 
 func main() {
@@ -38,14 +42,20 @@ func main() {
 
 	repo := paymentsRepo.NewRepo(db)
 	provider := providerClient.New(cfg.ProviderBaseURL, cfg.ProviderTimeout, cfg.ProviderRetryCount)
-	uc := processStalePaymentsUseCase.New(repo, provider, logger, staleDuration)
+	eventPublisher := events.NewLogPublisher(logger)
 
-	ticker := time.NewTicker(pollInterval)
-	defer ticker.Stop()
+	stalePaymentsUC := processStalePaymentsUseCase.New(repo, provider, logger, staleDuration)
+	outboxUC := processOutboxEventsUseCase.New(repo, eventPublisher, logger)
 
-	logger.InfoContext(ctx, "stale payments worker started",
+	staleTicker := time.NewTicker(pollInterval)
+	defer staleTicker.Stop()
+	outboxTicker := time.NewTicker(outboxInterval)
+	defer outboxTicker.Stop()
+
+	logger.InfoContext(ctx, "worker started",
 		"poll_interval", pollInterval,
 		"stale_duration", staleDuration,
+		"outbox_interval", outboxInterval,
 	)
 
 	go func() {
@@ -56,10 +66,12 @@ func main() {
 	for {
 		select {
 		case <-ctx.Done():
-			logger.Info("stale payments worker stopped")
+			logger.Info("worker stopped")
 			return
-		case <-ticker.C:
-			runPoll(ctx, uc, logger)
+		case <-staleTicker.C:
+			runPoll(ctx, stalePaymentsUC, logger)
+		case <-outboxTicker.C:
+			runOutboxPoll(ctx, outboxUC, logger)
 		}
 	}
 }
@@ -71,6 +83,19 @@ func runPoll(ctx context.Context, uc *processStalePaymentsUseCase.UseCase, logge
 	defer func() {
 		if r := recover(); r != nil {
 			logger.ErrorContext(ctx, "poll panicked", "panic", r)
+		}
+	}()
+
+	uc.Execute(tickCtx)
+}
+
+func runOutboxPoll(ctx context.Context, uc *processOutboxEventsUseCase.UseCase, logger *slog.Logger) {
+	tickCtx, cancel := context.WithTimeout(context.Background(), outboxTimeout)
+	defer cancel()
+
+	defer func() {
+		if r := recover(); r != nil {
+			logger.ErrorContext(ctx, "outbox poll panicked", "panic", r)
 		}
 	}()
 
