@@ -22,7 +22,7 @@ func (u *UseCase) Execute(ctx context.Context, req Request) (domain.Payment, err
 	if err != nil {
 		return domain.Payment{}, err
 	}
-	if payment.Status != status.Paid {
+	if !status.CanTransition(payment.Status, status.Refunded) {
 		return domain.Payment{}, apperror.ErrInvalidTransition
 	}
 

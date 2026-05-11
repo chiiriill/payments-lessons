@@ -22,7 +22,7 @@ func (u *UseCase) Execute(ctx context.Context, req Request) error {
 	if err != nil {
 		return err
 	}
-	if payment.Status == status.Paid {
+	if !status.CanTransition(payment.Status, status.Paid) {
 		return nil
 	}
 	_, err = u.repo.SetPaidForReceiveWebhook(ctx, payment.ID)
