@@ -9,12 +9,16 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"stepik-payments-course/internal/config"
 	providerClient "stepik-payments-course/internal/infrastructure/provider/mockclient"
 	paymentsRepo "stepik-payments-course/internal/infrastructure/repository/payments"
 	"stepik-payments-course/internal/usecase/processStalePaymentsUseCase"
+)
 
-	"github.com/jackc/pgx/v5/pgxpool"
+const (
+	pollInterval  = 30 * time.Second
+	staleDuration = 5 * time.Minute
 )
 
 func main() {
@@ -33,12 +37,15 @@ func main() {
 
 	repo := paymentsRepo.NewRepo(db)
 	provider := providerClient.New(cfg.ProviderBaseURL, cfg.ProviderTimeout, cfg.ProviderRetryCount)
-	uc := processStalePaymentsUseCase.New(repo, provider, logger)
+	uc := processStalePaymentsUseCase.New(repo, provider, logger, staleDuration)
 
-	ticker := time.NewTicker(30 * time.Second)
+	ticker := time.NewTicker(pollInterval)
 	defer ticker.Stop()
 
-	logger.InfoContext(ctx, "stale payments worker started")
+	logger.InfoContext(ctx, "stale payments worker started",
+		"poll_interval", pollInterval,
+		"stale_duration", staleDuration,
+	)
 	for {
 		select {
 		case <-ctx.Done():

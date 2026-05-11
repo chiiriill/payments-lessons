@@ -8,20 +8,19 @@ import (
 	"stepik-payments-course/internal/common/status"
 )
 
-const staleDuration = 5 * time.Minute
-
 type UseCase struct {
-	repo     repo
-	provider provider
-	logger   *slog.Logger
+	repo          repo
+	provider      provider
+	logger        *slog.Logger
+	staleDuration time.Duration
 }
 
-func New(repo repo, provider provider, logger *slog.Logger) *UseCase {
-	return &UseCase{repo: repo, provider: provider, logger: logger}
+func New(repo repo, provider provider, logger *slog.Logger, staleDuration time.Duration) *UseCase {
+	return &UseCase{repo: repo, provider: provider, logger: logger, staleDuration: staleDuration}
 }
 
 func (u *UseCase) Execute(ctx context.Context) Result {
-	payments, err := u.repo.GetStalePendingPaymentsForWorker(ctx, staleDuration)
+	payments, err := u.repo.GetStalePendingPaymentsForWorker(ctx, u.staleDuration)
 	if err != nil {
 		u.logger.ErrorContext(ctx, "get stale payments failed", "error", err)
 		return Result{}
