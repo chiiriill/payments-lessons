@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 
+	"stepik-payments-course/internal/common/status"
 	"stepik-payments-course/internal/domain"
 )
 
@@ -23,11 +24,18 @@ func (u *UseCase) Execute(ctx context.Context, req Request) (domain.Payment, err
 		return domain.Payment{}, err
 	}
 	if existed {
-		u.logger.InfoContext(ctx, "idempotent create - returning existing payment",
+		if payment.ProviderPaymentID != "" || status.IsTerminal(payment.Status) {
+			u.logger.InfoContext(ctx, "idempotent create - returning existing payment",
+				"idempotency_key", req.IdempotencyKey,
+				"payment_id", payment.ID,
+				"status", payment.Status,
+			)
+			return payment, nil
+		}
+		u.logger.InfoContext(ctx, "idempotent create - retrying provider call after partial failure",
 			"idempotency_key", req.IdempotencyKey,
 			"payment_id", payment.ID,
 		)
-		return payment, nil
 	}
 
 	providerRes, err := u.provider.CreatePayment(ctx, ProviderCreateRequest{
