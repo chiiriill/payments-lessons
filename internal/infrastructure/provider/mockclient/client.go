@@ -10,6 +10,7 @@ import (
 
 	"stepik-payments-course/internal/usecase/checkPaymentUseCase"
 	"stepik-payments-course/internal/usecase/createPaymentUseCase"
+	"stepik-payments-course/internal/usecase/processStalePaymentsUseCase"
 	"stepik-payments-course/internal/usecase/refundPaymentUseCase"
 )
 
@@ -35,6 +36,12 @@ func (c *Client) CreatePayment(ctx context.Context, req createPaymentUseCase.Pro
 
 func (c *Client) CheckPayment(ctx context.Context, providerPaymentID string) (checkPaymentUseCase.ProviderStatusResponse, error) {
 	var res checkPaymentUseCase.ProviderStatusResponse
+	err := c.do(ctx, http.MethodGet, "/payments/"+providerPaymentID, nil, &res)
+	return res, err
+}
+
+func (c *Client) CheckPaymentForWorker(ctx context.Context, providerPaymentID string) (processStalePaymentsUseCase.ProviderStatusResponse, error) {
+	var res processStalePaymentsUseCase.ProviderStatusResponse
 	err := c.do(ctx, http.MethodGet, "/payments/"+providerPaymentID, nil, &res)
 	return res, err
 }

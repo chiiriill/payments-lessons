@@ -8,8 +8,6 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/gofiber/fiber/v2"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"stepik-payments-course/internal/config"
 	httpHandler "stepik-payments-course/internal/infrastructure/http/handler"
 	providerClient "stepik-payments-course/internal/infrastructure/provider/mockclient"
@@ -19,6 +17,9 @@ import (
 	"stepik-payments-course/internal/usecase/getPaymentUseCase"
 	"stepik-payments-course/internal/usecase/receiveWebhookUseCase"
 	"stepik-payments-course/internal/usecase/refundPaymentUseCase"
+
+	"github.com/gofiber/fiber/v2"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func main() {

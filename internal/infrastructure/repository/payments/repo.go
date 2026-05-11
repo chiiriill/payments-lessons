@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -120,6 +121,36 @@ func (r *Repo) SetFailedForReceiveWebhook(ctx context.Context, paymentID string)
 	q := `UPDATE payments SET status = $2, updated_at = now() WHERE id = $1 AND status = $3
 		RETURNING id, order_id, amount, currency, description, status, provider_payment_id, payment_url, created_at, updated_at`
 	p, err := scanPayment(r.db.QueryRow(ctx, q, paymentID, status.Failed, status.Pending))
+	return p, noRowsAsConflict(err)
+}
+
+func (r *Repo) GetStalePendingPaymentsForWorker(ctx context.Context, olderThan time.Duration) ([]domain.Payment, error) {
+	threshold := time.Now().Add(-olderThan)
+	q := `SELECT id, order_id, amount, currency, description, status, provider_payment_id, payment_url, created_at, updated_at
+		FROM payments
+		WHERE status = $1 AND provider_payment_id != '' AND updated_at < $2
+		ORDER BY updated_at ASC
+		LIMIT 100`
+	rows, err := r.db.Query(ctx, q, status.Pending, threshold)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var payments []domain.Payment
+	for rows.Next() {
+		var p domain.Payment
+		if err := rows.Scan(&p.ID, &p.OrderID, &p.Amount, &p.Currency, &p.Description, &p.Status, &p.ProviderPaymentID, &p.PaymentURL, &p.CreatedAt, &p.UpdatedAt); err != nil {
+			return nil, err
+		}
+		payments = append(payments, p)
+	}
+	return payments, rows.Err()
+}
+
+func (r *Repo) SetPaidForWorker(ctx context.Context, paymentID string) (domain.Payment, error) {
+	q := `UPDATE payments SET status = $2, updated_at = now() WHERE id = $1 AND status = $3
+		RETURNING id, order_id, amount, currency, description, status, provider_payment_id, payment_url, created_at, updated_at`
+	p, err := scanPayment(r.db.QueryRow(ctx, q, paymentID, status.Paid, status.Pending))
 	return p, noRowsAsConflict(err)
 }
 
