@@ -18,7 +18,7 @@ func (u *UseCase) Execute(ctx context.Context, req Request) error {
 	if req.Event != "payment.succeeded" {
 		return nil
 	}
-	payment, err := u.repo.GetPaymentForReceiveWebhook(ctx, req.PaymentID)
+	payment, err := u.repo.GetPaymentByProviderIDForReceiveWebhook(ctx, req.ProviderPaymentID)
 	if err != nil {
 		return err
 	}

@@ -7,15 +7,15 @@ import (
 
 func (h *Handler) ReceiveWebhook(c *fiber.Ctx) error {
 	var req struct {
-		PaymentID string `json:"payment_id"`
-		Event     string `json:"event"`
+		ProviderPaymentID string `json:"provider_payment_id"`
+		Event             string `json:"event"`
 	}
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid json body"})
 	}
 	if err := h.receiveWebhook.Execute(c.Context(), receiveWebhookUseCase.Request{
-		PaymentID: req.PaymentID,
-		Event:     req.Event,
+		ProviderPaymentID: req.ProviderPaymentID,
+		Event:             req.Event,
 	}); err != nil {
 		return handleError(c, err)
 	}

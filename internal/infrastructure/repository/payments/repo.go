@@ -86,9 +86,9 @@ func (r *Repo) SetRefundedForRefundPayment(ctx context.Context, paymentID string
 	return scanPayment(r.db.QueryRow(ctx, q, paymentID, status.Refunded))
 }
 
-func (r *Repo) GetPaymentForReceiveWebhook(ctx context.Context, paymentID string) (domain.Payment, error) {
-	q := `SELECT id, order_id, amount, currency, description, status, provider_payment_id, payment_url, created_at, updated_at FROM payments WHERE id = $1`
-	return scanPayment(r.db.QueryRow(ctx, q, paymentID))
+func (r *Repo) GetPaymentByProviderIDForReceiveWebhook(ctx context.Context, providerPaymentID string) (domain.Payment, error) {
+	q := `SELECT id, order_id, amount, currency, description, status, provider_payment_id, payment_url, created_at, updated_at FROM payments WHERE provider_payment_id = $1`
+	return scanPayment(r.db.QueryRow(ctx, q, providerPaymentID))
 }
 
 func (r *Repo) SetPaidForReceiveWebhook(ctx context.Context, paymentID string) (domain.Payment, error) {
