@@ -7,6 +7,7 @@ import (
 	"errors"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"stepik-payments-course/internal/common/apperror"
 	"stepik-payments-course/internal/common/status"
@@ -42,6 +43,12 @@ func (r *Repo) CreatePaymentByIdempotencyKey(ctx context.Context, req createPaym
 		RETURNING id, order_id, amount, currency, description, status, provider_payment_id, payment_url, created_at, updated_at`
 	payment, err := scanPayment(r.db.QueryRow(ctx, q, paymentID, req.IdempotencyKey, req.OrderID, req.Amount, req.Currency, req.Description, status.Pending))
 	if err != nil {
+		if isUniqueViolation(err) && req.IdempotencyKey != "" {
+			existing, getErr := r.getByIdempotencyKey(ctx, req.IdempotencyKey)
+			if getErr == nil {
+				return existing, true, nil
+			}
+		}
 		return domain.Payment{}, false, err
 	}
 	return payment, false, nil
@@ -147,4 +154,9 @@ func noRowsAsConflict(err error) error {
 		return apperror.ErrInvalidTransition
 	}
 	return err
+}
+
+func isUniqueViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505"
 }
