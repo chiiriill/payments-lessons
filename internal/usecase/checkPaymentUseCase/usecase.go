@@ -2,6 +2,7 @@ package checkPaymentUseCase
 
 import (
 	"context"
+
 	"stepik-payments-course/internal/common/status"
 	"stepik-payments-course/internal/domain"
 )
