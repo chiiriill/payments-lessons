@@ -23,6 +23,10 @@ func (u *UseCase) Execute(ctx context.Context, req Request) (domain.Payment, err
 		return domain.Payment{}, err
 	}
 	if existed {
+		u.logger.InfoContext(ctx, "idempotent create - returning existing payment",
+			"idempotency_key", req.IdempotencyKey,
+			"payment_id", payment.ID,
+		)
 		return payment, nil
 	}
 
