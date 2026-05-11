@@ -44,7 +44,7 @@ func main() {
 	receiveWebhook := receiveWebhookUseCase.New(repo)
 
 	app := fiber.New(fiber.Config{AppName: cfg.AppName})
-	httpHandler.New(createPayment, getPayment, checkPayment, refundPayment, receiveWebhook).Register(app)
+	httpHandler.New(createPayment, getPayment, checkPayment, refundPayment, receiveWebhook, cfg.WebhookSecret).Register(app)
 
 	logger.Info("starting", "app", cfg.AppName, "addr", cfg.HTTPAddr)
 	go func() {

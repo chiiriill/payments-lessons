@@ -24,7 +24,6 @@ func (u *UseCase) Execute(ctx context.Context, req Request) (domain.Payment, err
 	if payment.ProviderPaymentID == "" {
 		return payment, nil
 	}
-
 	providerRes, err := u.provider.CheckPayment(ctx, payment.ProviderPaymentID)
 	if err != nil {
 		return domain.Payment{}, err

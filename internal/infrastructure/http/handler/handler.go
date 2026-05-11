@@ -18,6 +18,7 @@ type Handler struct {
 	checkPayment   *checkPaymentUseCase.UseCase
 	refundPayment  *refundPaymentUseCase.UseCase
 	receiveWebhook *receiveWebhookUseCase.UseCase
+	webhookSecret  string
 }
 
 func New(
@@ -26,6 +27,7 @@ func New(
 	checkPayment *checkPaymentUseCase.UseCase,
 	refundPayment *refundPaymentUseCase.UseCase,
 	receiveWebhook *receiveWebhookUseCase.UseCase,
+	webhookSecret string,
 ) *Handler {
 	return &Handler{
 		createPayment:  createPayment,
@@ -33,6 +35,7 @@ func New(
 		checkPayment:   checkPayment,
 		refundPayment:  refundPayment,
 		receiveWebhook: receiveWebhook,
+		webhookSecret:  webhookSecret,
 	}
 }
 

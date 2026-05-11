@@ -14,6 +14,7 @@ type Config struct {
 	ProviderBaseURL    string
 	ProviderTimeout    time.Duration
 	ProviderRetryCount int
+	WebhookSecret      string
 }
 
 func Load() Config {
@@ -25,6 +26,7 @@ func Load() Config {
 		ProviderBaseURL:    env("PROVIDER_BASE_URL", "http://localhost:8082"),
 		ProviderTimeout:    durationEnv("PROVIDER_TIMEOUT", 3*time.Second),
 		ProviderRetryCount: intEnv("PROVIDER_RETRY_COUNT", 2),
+		WebhookSecret:      env("WEBHOOK_SECRET", "local-secret"),
 	}
 }
 
