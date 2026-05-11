@@ -88,6 +88,56 @@ func main() {
 		return c.JSON(fiber.Map{"status": "refunded"})
 	})
 
+	app.Post("/payments/:id/fail", func(c *fiber.Ctx) error {
+		store.mu.Lock()
+		p, ok := store.payments[c.Params("id")]
+		if ok {
+			p.Status = "failed"
+			store.payments[p.ProviderPaymentID] = p
+		}
+		store.mu.Unlock()
+		if !ok {
+			return fiber.ErrNotFound
+		}
+
+		body := map[string]string{
+			"event_id":            "evt_" + randomID(),
+			"event":               "payment.failed",
+			"provider_payment_id": p.ProviderPaymentID,
+		}
+		data, _ := json.Marshal(body)
+		signature := sign(secret, data)
+
+		deliveryStatus := "not_sent"
+		if webhookTarget != "" {
+			req, err := http.NewRequestWithContext(c.UserContext(), http.MethodPost, webhookTarget, bytes.NewReader(data))
+			if err != nil {
+				return err
+			}
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("X-Provider-Signature", signature)
+			res, err := httpClient.Do(req)
+			if err != nil {
+				log.Printf("webhook delivery failed: %v", err)
+				deliveryStatus = "failed"
+			} else {
+				_ = res.Body.Close()
+				if res.StatusCode >= http.StatusBadRequest {
+					log.Printf("webhook delivery returned status %d", res.StatusCode)
+					deliveryStatus = "failed"
+				} else {
+					deliveryStatus = "sent"
+				}
+			}
+		}
+
+		return c.JSON(fiber.Map{
+			"webhook_body":      json.RawMessage(data),
+			"webhook_signature": signature,
+			"delivery_status":   deliveryStatus,
+		})
+	})
+
 	app.Post("/payments/:id/succeed", func(c *fiber.Ctx) error {
 		store.mu.Lock()
 		p, ok := store.payments[c.Params("id")]

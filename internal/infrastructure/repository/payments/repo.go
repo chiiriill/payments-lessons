@@ -97,6 +97,12 @@ func (r *Repo) SetPaidForReceiveWebhook(ctx context.Context, paymentID string) (
 	return scanPayment(r.db.QueryRow(ctx, q, paymentID, status.Paid))
 }
 
+func (r *Repo) SetFailedForReceiveWebhook(ctx context.Context, paymentID string) (domain.Payment, error) {
+	q := `UPDATE payments SET status = $2, updated_at = now() WHERE id = $1
+		RETURNING id, order_id, amount, currency, description, status, provider_payment_id, payment_url, created_at, updated_at`
+	return scanPayment(r.db.QueryRow(ctx, q, paymentID, status.Failed))
+}
+
 func (r *Repo) getByIdempotencyKey(ctx context.Context, key string) (domain.Payment, error) {
 	q := `SELECT id, order_id, amount, currency, description, status, provider_payment_id, payment_url, created_at, updated_at FROM payments WHERE idempotency_key = $1`
 	return scanPayment(r.db.QueryRow(ctx, q, key))

@@ -15,16 +15,27 @@ func New(repo repo) *UseCase {
 }
 
 func (u *UseCase) Execute(ctx context.Context, req Request) error {
-	if req.Event != "payment.succeeded" {
+	var targetStatus string
+	switch req.Event {
+	case "payment.succeeded":
+		targetStatus = status.Paid
+	case "payment.failed":
+		targetStatus = status.Failed
+	default:
 		return nil
 	}
+
 	payment, err := u.repo.GetPaymentByProviderIDForReceiveWebhook(ctx, req.ProviderPaymentID)
 	if err != nil {
 		return err
 	}
-	if !status.CanTransition(payment.Status, status.Paid) {
+	if !status.CanTransition(payment.Status, targetStatus) {
 		return nil
 	}
-	_, err = u.repo.SetPaidForReceiveWebhook(ctx, payment.ID)
+	if targetStatus == status.Paid {
+		_, err = u.repo.SetPaidForReceiveWebhook(ctx, payment.ID)
+	} else {
+		_, err = u.repo.SetFailedForReceiveWebhook(ctx, payment.ID)
+	}
 	return err
 }
